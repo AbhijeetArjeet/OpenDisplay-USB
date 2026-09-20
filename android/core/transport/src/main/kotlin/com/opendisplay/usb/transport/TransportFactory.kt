@@ -5,6 +5,10 @@ object TransportFactory {
         return TcpServerTransport(port = port)
     }
 
+    fun createAoaTransport(fileDescriptor: android.os.ParcelFileDescriptor): Transport {
+        return AoaTransport(fileDescriptor = fileDescriptor)
+    }
+
     fun createFakeTransport(id: String = "fake-1", name: String = "Fake Transport"): Transport {
         return FakeTransport(
             TransportInfo(

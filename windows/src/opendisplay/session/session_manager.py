@@ -31,7 +31,8 @@ class SessionManager:
         performance_profile: PerformanceProfile = PerformanceProfile.BALANCED,
         preferred_codec: str = "H264",
         monitor_index: int = 0,
-        capture_backend: str = "dxgi"
+        capture_backend: str = "dxgi",
+        auto_extend: bool = False
     ):
         self.transport = transport
         self.diagnostics = diagnostics or DiagnosticsCollector()
@@ -44,6 +45,10 @@ class SessionManager:
         self.preferred_codec = preferred_codec
         self.monitor_index = monitor_index
         self.capture_backend = capture_backend
+        self.auto_extend = auto_extend or (monitor_index > 0)
+
+        from ..display.virtual_display import VirtualDisplayManager
+        self.virtual_display_manager: Optional[VirtualDisplayManager] = VirtualDisplayManager() if self.auto_extend else None
 
         self.controller: Optional[ProtocolController] = None
         self._main_task: Optional[asyncio.Task] = None
@@ -52,11 +57,15 @@ class SessionManager:
     async def start(self) -> None:
         """Starts the session manager loop."""
         self._stopped = False
+        if self.virtual_display_manager and self.auto_extend:
+            self.virtual_display_manager.enable_extend_mode()
         self._main_task = asyncio.create_task(self._run_loop())
 
     async def stop(self) -> None:
         """Stops the session and disconnects cleanly."""
         self._stopped = True
+        if self.virtual_display_manager:
+            self.virtual_display_manager.teardown()
         if self.controller:
             try:
                 # Send clean DISCONNECT to Android receiver

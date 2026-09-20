@@ -27,6 +27,7 @@ import com.opendisplay.usb.input.TouchEncoder
 import com.opendisplay.usb.transport.ConnectionState
 import com.opendisplay.usb.transport.TcpServerTransport
 import com.opendisplay.usb.ui.DiagnosticsScreen
+import com.opendisplay.usb.ui.FloatingToolbar
 import com.opendisplay.usb.ui.MainScreen
 import com.opendisplay.usb.ui.SettingsScreen
 import com.opendisplay.usb.ui.theme.OpenDisplayTheme
@@ -78,8 +79,8 @@ class MainActivity : ComponentActivity() {
         // Keep screen on during active display session
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        // Start ADB TCP server transport on port 7320
-        sessionManager.start(TcpServerTransport(port = 7320))
+        // Check for USB accessory (AOA mode) or fallback to TCP port 7320
+        checkUsbAccessory(intent)
 
         setContent {
             OpenDisplayTheme {
@@ -136,8 +137,16 @@ class MainActivity : ComponentActivity() {
                                     })
 
                                     setOnTouchListener { view, event ->
-                                        val msg = touchEncoder.encode(event, view.width, view.height)
-                                        if (msg != null) {
+                                        val messages = touchEncoder.encodeBatch(event, view.width, view.height)
+                                        for (msg in messages) {
+                                            sessionManager.sendInputEvent(msg)
+                                        }
+                                        true
+                                    }
+
+                                    setOnHoverListener { view, event ->
+                                        val messages = touchEncoder.encodeBatch(event, view.width, view.height)
+                                        for (msg in messages) {
                                             sessionManager.sendInputEvent(msg)
                                         }
                                         true
@@ -146,9 +155,17 @@ class MainActivity : ComponentActivity() {
                             }
                         )
 
-                        // If not actively streaming video, display the UI dashboard
+                        // If actively streaming, show floating overlay toolbar; otherwise show dashboard
                         val isStreaming = uiState.connectionState == ConnectionState.CONNECTED && uiState.videoCodec.isNotEmpty()
-                        if (!isStreaming) {
+                        if (isStreaming) {
+                            FloatingToolbar(
+                                diagnostics = uiState.diagnostics,
+                                onDisconnect = {
+                                    checkUsbAccessory(intent)
+                                },
+                                modifier = Modifier.align(Alignment.TopEnd)
+                            )
+                        } else {
                             NavHost(
                                 navController = navController,
                                 startDestination = "main"
@@ -185,9 +202,33 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        checkUsbAccessory(intent)
+    }
+
+    private fun checkUsbAccessory(intent: android.content.Intent?) {
+        val usbManager = getSystemService(USB_SERVICE) as? android.hardware.usb.UsbManager ?: return
+        val accessory = intent?.getParcelableExtra<android.hardware.usb.UsbAccessory>(android.hardware.usb.UsbManager.EXTRA_ACCESSORY)
+            ?: usbManager.accessoryList?.firstOrNull()
+
+        if (accessory != null) {
+            val pfd = usbManager.openAccessory(accessory)
+            if (pfd != null) {
+                android.util.Log.i("MainActivity", "AOA USB Accessory connected: ${accessory.description}")
+                sessionManager.start(com.opendisplay.usb.transport.AoaTransport(pfd))
+                return
+            }
+        }
+        // Fallback to ADB TCP server transport on port 7320
+        sessionManager.start(TcpServerTransport(port = 7320))
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         videoDecoder.release()
         videoFrameQueue.close()
     }
 }
+

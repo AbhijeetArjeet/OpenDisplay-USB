@@ -7,56 +7,97 @@ import com.opendisplay.usb.protocol.PointerInfo
 /**
  * Encodes Android [MotionEvent] objects into [InputEventMessage] protocol messages.
  *
- * Coordinate normalization:
- *   normalized_x = raw_x / view_width_px   (clamped to 0.0..1.0)
- *   normalized_y = raw_y / view_height_px  (clamped to 0.0..1.0)
- *
- * The Windows side must scale back:
- *   absolute_x = normalized_x * virtual_display_width_px
- *
- * Multi-touch: all pointers in the event are encoded in the same message.
- *
- * Thread safety: stateless. Safe to call from any thread.
+ * Features:
+ * - Up to 240Hz batch event extraction via [encodeBatch] and historical samples.
+ * - Full S-Pen and active stylus support: toolType, pressure (0.0..1.0), tiltX, tiltY, buttons.
+ * - Stylus hover tracking (ACTION_HOVER_MOVE) for Windows cursor preview.
+ * - Multitouch pointer tracking and normalized coordinates (0.0..1.0).
  */
 class TouchEncoder {
 
     /**
-     * Encodes a [MotionEvent] into an [InputEventMessage].
-     *
-     * @param event      the raw Android motion event
-     * @param viewWidth  width of the rendering surface in pixels
-     * @param viewHeight height of the rendering surface in pixels
-     * @return the protocol message, or null if the event should be ignored
-     *         (e.g., unknown tool type with no useful data)
+     * Encodes a single [MotionEvent] into an [InputEventMessage].
      */
     fun encode(event: MotionEvent, viewWidth: Int, viewHeight: Int): InputEventMessage? {
-        if (viewWidth <= 0 || viewHeight <= 0) return null
+        val batch = encodeBatch(event, viewWidth, viewHeight)
+        return batch.lastOrNull()
+    }
+
+    /**
+     * Encodes a [MotionEvent] including all intermediate historical samples into a list of
+     * [InputEventMessage] messages, delivering full 120-240Hz sampling accuracy.
+     */
+    fun encodeBatch(event: MotionEvent, viewWidth: Int, viewHeight: Int): List<InputEventMessage> {
+        if (viewWidth <= 0 || viewHeight <= 0) return emptyList()
 
         val actionMasked = event.actionMasked
         val actionPointerIndex = event.actionIndex
 
-        // Determine the action string for the active pointer
         val primaryAction = when (actionMasked) {
             MotionEvent.ACTION_DOWN,
-            MotionEvent.ACTION_POINTER_DOWN      -> "DOWN"
-            MotionEvent.ACTION_MOVE              -> "MOVE"
+            MotionEvent.ACTION_POINTER_DOWN -> "DOWN"
+            MotionEvent.ACTION_MOVE         -> "MOVE"
             MotionEvent.ACTION_UP,
-            MotionEvent.ACTION_POINTER_UP        -> "UP"
-            MotionEvent.ACTION_CANCEL            -> "CANCEL"
-            else                                 -> return null  // unhandled action
+            MotionEvent.ACTION_POINTER_UP   -> "UP"
+            MotionEvent.ACTION_CANCEL       -> "CANCEL"
+            MotionEvent.ACTION_HOVER_MOVE   -> "HOVER"
+            MotionEvent.ACTION_HOVER_ENTER  -> "HOVER_ENTER"
+            MotionEvent.ACTION_HOVER_EXIT   -> "HOVER_EXIT"
+            else                            -> return emptyList()
         }
 
+        val messages = mutableListOf<InputEventMessage>()
+
+        // 1. Process historical samples first if this is a MOVE event
+        val historySize = event.historySize
+        if (historySize > 0 && actionMasked == MotionEvent.ACTION_MOVE) {
+            for (h in 0 until historySize) {
+                val histTimeNs = event.getHistoricalEventTime(h) * 1_000_000L
+                val histPointers = (0 until event.pointerCount).map { i ->
+                    val normX = (event.getHistoricalX(i, h) / viewWidth).coerceIn(0f, 1f)
+                    val normY = (event.getHistoricalY(i, h) / viewHeight).coerceIn(0f, 1f)
+                    val pressure = event.getHistoricalPressure(i, h).coerceIn(0f, 1f)
+                    val toolType = toolTypeString(event.getToolType(i))
+                    val tiltRad = event.getHistoricalAxisValue(MotionEvent.AXIS_TILT, i, h)
+
+                    PointerInfo(
+                        id = event.getPointerId(i),
+                        action = "MOVE",
+                        x = normX,
+                        y = normY,
+                        pressure = pressure,
+                        tiltX = tiltRad,
+                        tiltY = tiltRad,
+                        toolType = toolType,
+                        buttons = event.buttonState
+                    )
+                }
+
+                val eventType = if (histPointers.any { it.toolType == "STYLUS" || it.toolType == "ERASER" }) "STYLUS" else "TOUCH"
+                messages.add(
+                    InputEventMessage(
+                        eventType = eventType,
+                        timestampNs = histTimeNs,
+                        pointers = histPointers
+                    )
+                )
+            }
+        }
+
+        // 2. Process current motion sample
         val pointers = (0 until event.pointerCount).map { i ->
             val action = when {
                 actionMasked == MotionEvent.ACTION_MOVE -> "MOVE"
+                actionMasked == MotionEvent.ACTION_HOVER_MOVE -> "HOVER"
                 i == actionPointerIndex                 -> primaryAction
-                else                                    -> "MOVE"  // other pointers are implicitly MOVE
+                else                                    -> "MOVE"
             }
 
             val normX = (event.getX(i) / viewWidth).coerceIn(0f, 1f)
             val normY = (event.getY(i) / viewHeight).coerceIn(0f, 1f)
             val pressure = event.getPressure(i).coerceIn(0f, 1f)
             val toolType = toolTypeString(event.getToolType(i))
+            val tiltRad = event.getAxisValue(MotionEvent.AXIS_TILT, i)
 
             PointerInfo(
                 id = event.getPointerId(i),
@@ -64,23 +105,26 @@ class TouchEncoder {
                 x = normX,
                 y = normY,
                 pressure = pressure,
-                toolType = toolType
+                tiltX = tiltRad,
+                tiltY = tiltRad,
+                toolType = toolType,
+                buttons = event.buttonState
             )
         }
 
-        // timestampNs: MotionEvent.eventTime is in milliseconds since boot; convert to ns
         val timestampNs = event.eventTime * 1_000_000L
+        val eventType = if (pointers.any { it.toolType == "STYLUS" || it.toolType == "ERASER" }) "STYLUS" else "TOUCH"
 
-        val eventType = if (pointers.any { it.toolType == "STYLUS" }) "STYLUS" else "TOUCH"
-
-        return InputEventMessage(
-            eventType = eventType,
-            timestampNs = timestampNs,
-            pointers = pointers
+        messages.add(
+            InputEventMessage(
+                eventType = eventType,
+                timestampNs = timestampNs,
+                pointers = pointers
+            )
         )
-    }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+        return messages
+    }
 
     private fun toolTypeString(toolType: Int): String = when (toolType) {
         MotionEvent.TOOL_TYPE_FINGER -> "FINGER"
@@ -91,10 +135,6 @@ class TouchEncoder {
     }
 
     companion object {
-        /**
-         * Standalone utility for normalizing a single coordinate.
-         * Exposed for unit testing without requiring a MotionEvent.
-         */
         fun normalizeCoordinate(value: Float, dimension: Int): Float {
             if (dimension <= 0) return 0f
             return (value / dimension).coerceIn(0f, 1f)
