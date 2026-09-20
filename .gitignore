@@ -37,6 +37,8 @@ release_assets/
 *.log
 *.tmp
 *.png
+!android/app/src/main/res/**/*.png
+!windows/src/opendisplay/ui/resources/**/*.png
 *.zip
 windows/driver/virtual_display/*.exe
 windows/test_*.py

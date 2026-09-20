@@ -68,6 +68,13 @@ class MainWindow(QMainWindow):
         self._session_loop = None
         self._session_thread = None
 
+        self._icon_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "resources", "yui_icon.png"))
+        if os.path.exists(self._icon_path):
+            self._app_icon = QIcon(self._icon_path)
+            self.setWindowIcon(self._app_icon)
+        else:
+            self._app_icon = create_status_icon(QColor(139, 148, 158))
+
         self._init_theme()
         self._init_ui()
         self._init_tray()
@@ -197,6 +204,17 @@ class MainWindow(QMainWindow):
         hero_layout.setSpacing(12)
 
         header_row = QHBoxLayout()
+        header_row.setSpacing(10)
+
+        if os.path.exists(self._icon_path):
+            avatar_label = QLabel()
+            avatar_pixmap = QPixmap(self._icon_path).scaled(
+                36, 36, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+            )
+            avatar_label.setPixmap(avatar_pixmap)
+            avatar_label.setStyleSheet("border-radius: 18px;")
+            header_row.addWidget(avatar_label)
+
         title_label = QLabel("OpenDisplay USB")
         title_label.setObjectName("heroTitle")
 
@@ -335,7 +353,7 @@ class MainWindow(QMainWindow):
     def _init_tray(self):
         """Initializes system tray icon and menu."""
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(create_status_icon(QColor(139, 148, 158)))
+        self.tray_icon.setIcon(self._app_icon)
         self.tray_icon.setToolTip("OpenDisplay USB — Idle")
 
         tray_menu = QMenu()
