@@ -53,6 +53,7 @@ class MainActivity : ComponentActivity() {
     private val diagnostics = DiagnosticsCollector()
     private val capabilityDetector by lazy { CapabilityDetector(this) }
     private val touchEncoder = TouchEncoder()
+    private val discoveryService by lazy { com.opendisplay.usb.transport.discovery.NetworkDiscoveryService(this) }
 
     private val sessionManager by lazy {
         val clipboardManager = getSystemService(CLIPBOARD_SERVICE) as? android.content.ClipboardManager
@@ -81,6 +82,9 @@ class MainActivity : ComponentActivity() {
 
         // Check for USB accessory (AOA mode) or fallback to TCP port 7320
         checkUsbAccessory(intent)
+
+        // Start wireless discovery beacons (Phase 7)
+        discoveryService.start()
 
         setContent {
             OpenDisplayTheme {
@@ -227,6 +231,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        discoveryService.stop()
         videoDecoder.release()
         videoFrameQueue.close()
     }

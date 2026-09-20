@@ -32,7 +32,8 @@ class SessionManager:
         preferred_codec: str = "H264",
         monitor_index: int = 0,
         capture_backend: str = "dxgi",
-        auto_extend: bool = False
+        auto_extend: bool = False,
+        enable_wifi_failover: bool = True
     ):
         self.transport = transport
         self.diagnostics = diagnostics or DiagnosticsCollector()
@@ -46,9 +47,13 @@ class SessionManager:
         self.monitor_index = monitor_index
         self.capture_backend = capture_backend
         self.auto_extend = auto_extend or (monitor_index > 0)
+        self.enable_wifi_failover = enable_wifi_failover
 
         from ..display.virtual_display import VirtualDisplayManager
         self.virtual_display_manager: Optional[VirtualDisplayManager] = VirtualDisplayManager() if self.auto_extend else None
+
+        from ..transport.discovery import NetworkDiscoveryManager
+        self.discovery_manager = NetworkDiscoveryManager() if self.enable_wifi_failover else None
 
         self.controller: Optional[ProtocolController] = None
         self._main_task: Optional[asyncio.Task] = None
@@ -131,7 +136,19 @@ class SessionManager:
                     await self.controller.stop()
 
             if not self._stopped:
-                logger.warning("Transport connection lost. Starting reconnect sequence...")
+                logger.warning("Transport connection lost. Checking for Wi-Fi failover...")
+                if self.enable_wifi_failover and self.discovery_manager:
+                    try:
+                        devices = await self.discovery_manager.discover_devices(timeout=0.6)
+                        if devices:
+                            best_dev = devices[0]
+                            logger.info("Auto-migrating session to discovered wireless device: %s (%s)", best_dev.name, best_dev.endpoint)
+                            from ..transport.wifi_transport import WifiTransport
+                            self.transport = WifiTransport(host=best_dev.ip, port=best_dev.port)
+                            continue
+                    except Exception as e:
+                        logger.debug("Wi-Fi failover discovery exception: %s", e)
+
                 self.transport.set_state(ConnectionState.RECONNECTING)
                 self.diagnostics.record_reconnect()
                 await asyncio.sleep(2.0)

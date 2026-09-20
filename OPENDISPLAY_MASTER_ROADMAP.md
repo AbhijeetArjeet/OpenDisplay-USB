@@ -140,7 +140,7 @@ flowchart LR
     P3 --> P4["Phase 4<br/>Native AOA USB<br/>(COMPLETED)"]
     P4 --> P5["Phase 5<br/>Low-Latency Stylus / Touch<br/>(COMPLETED)"]
     P5 --> P6["Phase 6<br/>Commercial UI / UX<br/>(COMPLETED)"]
-    P6 --> P7["Phase 7<br/>Wi-Fi 6 Direct Wireless"]
+    P6 --> P7["Phase 7<br/>Wi-Fi 6 Direct Wireless<br/>(COMPLETED)"]
     P7 --> P8["Phase 8<br/>Packaging, License & Release"]
 ```
 
@@ -228,10 +228,11 @@ flowchart LR
 
 ### Phase 7: Wi-Fi 6 Direct / ZeroConf Wireless Mode
 * **Objective:** Allow wireless secondary display streaming when moving away from the desk.
+* **Current Status:** COMPLETED. Built Android `NetworkDiscoveryService` (NSD & UDP port 7321 beacon responder), Windows `NetworkDiscoveryManager` ($< 200\text{ms}$ LAN probe), `WifiTransport` with dynamic jitter/RTT tracking, and `SessionManager` USB-to-Wi-Fi hot failover.
 * **Features:**
-  * Local network discovery via mDNS / DNS-SD (`_opendisplay._tcp.local`).
-  * Auto-negotiation of network bandwidth using UDP jitter estimation.
-  * Seamless auto-switch: When USB cable is disconnected, stream automatically migrates to Wi-Fi without crashing the Windows desktop layout.
+  * Local network discovery via UDP broadcast and mDNS / DNS-SD (`_opendisplay._tcp`).
+  * Dynamic jitter tracking (RFC 3550) with adaptive bitrate scaling.
+  * Seamless auto-switch: When the USB cable is disconnected, the stream automatically hot-swaps to Wi-Fi without crashing the Windows desktop layout.
 
 ---
 
