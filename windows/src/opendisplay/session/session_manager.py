@@ -29,7 +29,8 @@ class SessionManager:
         enable_audio: bool = True,
         enable_clipboard: bool = True,
         performance_profile: PerformanceProfile = PerformanceProfile.BALANCED,
-        preferred_codec: str = "H264"
+        preferred_codec: str = "H264",
+        monitor_index: int = 0
     ):
         self.transport = transport
         self.diagnostics = diagnostics or DiagnosticsCollector()
@@ -40,6 +41,7 @@ class SessionManager:
         self.enable_clipboard = enable_clipboard
         self.performance_profile = performance_profile
         self.preferred_codec = preferred_codec
+        self.monitor_index = monitor_index
 
         self.controller: Optional[ProtocolController] = None
         self._main_task: Optional[asyncio.Task] = None
@@ -94,7 +96,8 @@ class SessionManager:
                 enable_audio=self.enable_audio,
                 enable_clipboard=self.enable_clipboard,
                 performance_profile=self.performance_profile,
-                preferred_codec=self.preferred_codec
+                preferred_codec=self.preferred_codec,
+                monitor_index=self.monitor_index
             )
             await self.controller.start_handshake()
 

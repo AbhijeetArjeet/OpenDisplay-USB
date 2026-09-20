@@ -33,6 +33,15 @@ class BITMAPINFO(ctypes.Structure):
     ]
 
 
+class RECT(ctypes.Structure):
+    _fields_ = [
+        ("left", ctypes.c_long),
+        ("top", ctypes.c_long),
+        ("right", ctypes.c_long),
+        ("bottom", ctypes.c_long)
+    ]
+
+
 class ScreenCapture:
     """Acquires frames from the Windows desktop or virtual display with sub-6ms latency.
 
@@ -131,11 +140,41 @@ class ScreenCapture:
         self._allocated_w = 0
         self._allocated_h = 0
 
+    @classmethod
+    def get_monitors(cls):
+        """Enumerates connected display monitors and their bounding rectangles."""
+        monitors = []
+        def _enum_proc(hMonitor, hdcMonitor, lprcMonitor, dwData):
+            r = lprcMonitor.contents
+            monitors.append({
+                "index": len(monitors),
+                "x": r.left,
+                "y": r.top,
+                "width": r.right - r.left,
+                "height": r.bottom - r.top
+            })
+            return True
+
+        MONITORENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(RECT), ctypes.c_void_p)
+        try:
+            ctypes.windll.user32.EnumDisplayMonitors(None, None, MONITORENUMPROC(_enum_proc), 0)
+        except Exception as e:
+            logger.debug("EnumDisplayMonitors failed: %s", e)
+        return monitors
+
     def capture_bgra_frame(self) -> Optional[np.ndarray]:
         """Captures a BGRA frame directly into mapped memory buffer with ZERO copy."""
         try:
-            screen_w = self._user32.GetSystemMetrics(0)
-            screen_h = self._user32.GetSystemMetrics(1)
+            mons = self.get_monitors()
+            if self.monitor_index < len(mons):
+                mon = mons[self.monitor_index]
+                src_x, src_y = mon["x"], mon["y"]
+                screen_w, screen_h = mon["width"], mon["height"]
+            else:
+                src_x, src_y = 0, 0
+                screen_w = self._user32.GetSystemMetrics(0)
+                screen_h = self._user32.GetSystemMetrics(1)
+
             if screen_w <= 0 or screen_h <= 0:
                 screen_w, screen_h = self.width, self.height
 
@@ -145,14 +184,14 @@ class ScreenCapture:
 
             success = self._gdi32.BitBlt(
                 self._mem_dc, 0, 0, screen_w, screen_h,
-                self._screen_dc, 0, 0, 0x00CC0020
+                self._screen_dc, src_x, src_y, 0x00CC0020
             )
             if not success:
                 self._ensure_default_desktop()
                 self._screen_dc = self._user32.GetDC(None)
                 self._gdi32.BitBlt(
                     self._mem_dc, 0, 0, screen_w, screen_h,
-                    self._screen_dc, 0, 0, 0x00CC0020
+                    self._screen_dc, src_x, src_y, 0x00CC0020
                 )
 
             return self._np_bgra
@@ -163,8 +202,16 @@ class ScreenCapture:
     def capture_frame(self) -> Optional[np.ndarray]:
         """Captures a single RGB frame directly from the screen into numpy array."""
         try:
-            screen_w = self._user32.GetSystemMetrics(0)
-            screen_h = self._user32.GetSystemMetrics(1)
+            mons = self.get_monitors()
+            if self.monitor_index < len(mons):
+                mon = mons[self.monitor_index]
+                src_x, src_y = mon["x"], mon["y"]
+                screen_w, screen_h = mon["width"], mon["height"]
+            else:
+                src_x, src_y = 0, 0
+                screen_w = self._user32.GetSystemMetrics(0)
+                screen_h = self._user32.GetSystemMetrics(1)
+
             if screen_w <= 0 or screen_h <= 0:
                 screen_w, screen_h = self.width, self.height
 
@@ -177,7 +224,7 @@ class ScreenCapture:
             # SRCCOPY = 0x00CC0020
             success = self._gdi32.BitBlt(
                 self._mem_dc, 0, 0, screen_w, screen_h,
-                self._screen_dc, 0, 0, 0x00CC0020
+                self._screen_dc, src_x, src_y, 0x00CC0020
             )
             if not success:
                 # Desktop might have switched (UAC/lock), retry desktop attachment
@@ -185,7 +232,7 @@ class ScreenCapture:
                 self._screen_dc = self._user32.GetDC(None)
                 self._gdi32.BitBlt(
                     self._mem_dc, 0, 0, screen_w, screen_h,
-                    self._screen_dc, 0, 0, 0x00CC0020
+                    self._screen_dc, src_x, src_y, 0x00CC0020
                 )
 
             # BGRA to RGB slice (view without full copy when possible)

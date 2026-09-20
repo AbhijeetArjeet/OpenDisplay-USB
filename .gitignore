@@ -36,3 +36,7 @@ env/
 release_assets/
 *.log
 *.tmp
+*.png
+*.zip
+windows/driver/virtual_display/*.exe
+windows/test_*.py

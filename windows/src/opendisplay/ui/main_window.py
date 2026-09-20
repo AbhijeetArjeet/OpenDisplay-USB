@@ -137,31 +137,41 @@ class MainWindow(QMainWindow):
         grid = QGridLayout(settings_group)
         grid.setSpacing(10)
 
-        grid.addWidget(QLabel("Resolution:"), 0, 0)
-        self.combo_resolution = QComboBox()
-        self.combo_resolution.addItems(["1920x1080 (1080p)", "2000x1200 (Tablet)", "2560x1600 (2K)", "1280x800"])
-        grid.addWidget(self.combo_resolution, 0, 1)
+        grid.addWidget(QLabel("Display Mode:"), 0, 0)
+        self.combo_mode = QComboBox()
+        self.combo_mode.addItems(["Duplicate Primary Display", "Extend to Secondary Display (Monitor 1)"])
+        grid.addWidget(self.combo_mode, 0, 1)
 
-        grid.addWidget(QLabel("Frame Rate:"), 1, 0)
+        grid.addWidget(QLabel("Resolution:"), 1, 0)
+        self.combo_resolution = QComboBox()
+        self.combo_resolution.addItems(["2000x1200 (Tablet Native)", "1920x1080 (1080p)", "2560x1600 (2K)", "1280x800"])
+        grid.addWidget(self.combo_resolution, 1, 1)
+
+        grid.addWidget(QLabel("Frame Rate:"), 2, 0)
         self.combo_fps = QComboBox()
         self.combo_fps.addItems(["60 FPS", "120 FPS", "30 FPS"])
-        grid.addWidget(self.combo_fps, 1, 1)
+        grid.addWidget(self.combo_fps, 2, 1)
 
-        grid.addWidget(QLabel("Bitrate:"), 2, 0)
+        grid.addWidget(QLabel("Bitrate:"), 3, 0)
         self.bitrate_slider = QSlider(Qt.Orientation.Horizontal)
         self.bitrate_slider.setRange(4, 25)
-        self.bitrate_slider.setValue(10)
-        self.bitrate_label = QLabel("10 Mbps")
+        self.bitrate_slider.setValue(18)
+        self.bitrate_label = QLabel("18 Mbps")
         self.bitrate_slider.valueChanged.connect(lambda v: self.bitrate_label.setText(f"{v} Mbps"))
 
         bitrate_layout = QHBoxLayout()
         bitrate_layout.addWidget(self.bitrate_slider)
         bitrate_layout.addWidget(self.bitrate_label)
-        grid.addLayout(bitrate_layout, 2, 1)
+        grid.addLayout(bitrate_layout, 3, 1)
+
+        self.btn_install_driver = QPushButton("Install Virtual Display Driver (Phase 4)")
+        self.btn_install_driver.setStyleSheet("background-color: #1565C0; font-size: 11px; padding: 6px;")
+        self.btn_install_driver.clicked.connect(self._launch_driver_installer)
+        grid.addWidget(self.btn_install_driver, 4, 0, 1, 2)
 
         self.check_mock = QCheckBox("Use Mock Loopback Transport (Test Mode)")
-        self.check_mock.setChecked(True)
-        grid.addWidget(self.check_mock, 3, 0, 1, 2)
+        self.check_mock.setChecked(False)
+        grid.addWidget(self.check_mock, 5, 0, 1, 2)
 
         layout.addWidget(settings_group)
 
@@ -224,3 +234,13 @@ class MainWindow(QMainWindow):
         self.diag_bitrate.setText(f"{snap.bitrate_kbps / 1000.0:.2f} Mbps")
         self.diag_latency.setText(f"{snap.rtt_latency_ms:.1f} ms")
         self.diag_frames.setText(f"{snap.frames_sent} frames ({snap.keyframes_sent} key)")
+
+    def _launch_driver_installer(self):
+        """Launches the elevated Virtual Display Driver installer."""
+        import subprocess
+        import os
+        installer_bat = os.path.abspath(os.path.join(
+            os.path.dirname(__file__), "..", "..", "..", "driver", "virtual_display", "install_virtual_display.bat"
+        ))
+        if os.path.exists(installer_bat):
+            subprocess.Popen(["cmd.exe", "/c", installer_bat], shell=True)

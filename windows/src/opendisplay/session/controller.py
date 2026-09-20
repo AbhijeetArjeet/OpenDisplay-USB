@@ -62,7 +62,8 @@ class ProtocolController:
         enable_audio: bool = True,
         enable_clipboard: bool = True,
         performance_profile: PerformanceProfile = PerformanceProfile.BALANCED,
-        preferred_codec: str = "H264"
+        preferred_codec: str = "H264",
+        monitor_index: int = 0
     ):
         self.send_packet = send_packet_func
         self.diagnostics = diagnostics
@@ -72,6 +73,7 @@ class ProtocolController:
         self.enable_clipboard = enable_clipboard
         self.performance_profile = performance_profile
         self.preferred_codec = preferred_codec.upper()
+        self.monitor_index = monitor_index
         self.adaptive_controller = AdaptivePerformanceController(profile=self.performance_profile)
 
         self.state = SessionState.IDLE
@@ -231,17 +233,26 @@ class ProtocolController:
             negotiated_codec, params.target_fps, params.bitrate_bps, params.low_latency_flags
         )
 
-        # Use native host screen dimensions to prevent aspect ratio distortion
-        try:
-            import ctypes
-            user32 = ctypes.windll.user32
-            host_w = user32.GetSystemMetrics(0)
-            host_h = user32.GetSystemMetrics(1)
-        except Exception:
-            host_w, host_h = 1920, 1080
-
-        w = host_w if host_w > 0 else 1920
-        h = host_h if host_h > 0 else 1080
+        # Check available monitors (Monitor 0 = Primary / Duplicate; Monitor 1 = Extended / Virtual Display)
+        mons = ScreenCapture.get_monitors()
+        if self.monitor_index < len(mons):
+            selected_mon = mons[self.monitor_index]
+            w = selected_mon["width"]
+            h = selected_mon["height"]
+            logger.info("Using Monitor %d: %dx%d at origin (%d, %d)",
+                        self.monitor_index, w, h, selected_mon["x"], selected_mon["y"])
+            if self.input_injector:
+                self.input_injector.update_bounds(selected_mon["x"], selected_mon["y"], w, h)
+        else:
+            try:
+                import ctypes
+                user32 = ctypes.windll.user32
+                host_w = user32.GetSystemMetrics(0)
+                host_h = user32.GetSystemMetrics(1)
+            except Exception:
+                host_w, host_h = 1920, 1080
+            w = host_w if host_w > 0 else 1920
+            h = host_h if host_h > 0 else 1080
 
         self.video_encoder = VideoEncoder(
             width=w,
@@ -252,7 +263,7 @@ class ProtocolController:
             codec=negotiated_codec
         )
         self.pattern_generator = TestPatternGenerator(width=w, height=h)
-        self.screen_capture = ScreenCapture(width=w, height=h)
+        self.screen_capture = ScreenCapture(width=w, height=h, monitor_index=self.monitor_index)
 
         # Generate 1 frame to prime encoder and extract SPS/PPS CSD
         test_frame = self.pattern_generator.generate_frame()

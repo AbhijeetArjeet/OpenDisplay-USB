@@ -34,6 +34,8 @@ def parse_args():
     parser.add_argument("--synthetic", action="store_true", help="Use test pattern instead of real screen capture")
     parser.add_argument("--no-audio", action="store_true", help="Disable audio streaming")
     parser.add_argument("--no-clipboard", action="store_true", help="Disable clipboard sync")
+    parser.add_argument("--monitor", type=int, default=0, help="Monitor index: 0=Primary (Duplicate), 1=Extended")
+    parser.add_argument("--extend", action="store_true", help="Stream second/extended display (Monitor 1)")
     return parser.parse_args()
 
 
@@ -52,8 +54,9 @@ async def main_async():
         "automatic": PerformanceProfile.AUTOMATIC,
     }
     profile = profile_map[args.mode.lower()]
+    monitor_idx = 1 if args.extend else args.monitor
 
-    logger.info("Initializing transport on %s:%d...", args.host, args.port)
+    logger.info("Initializing transport on %s:%d (Monitor %d)...", args.host, args.port, monitor_idx)
     transport = AdbTransport(port=args.port)
     diagnostics = DiagnosticsCollector()
     input_injector = InputInjector()
@@ -66,7 +69,8 @@ async def main_async():
         enable_audio=not args.no_audio,
         enable_clipboard=not args.no_clipboard,
         performance_profile=profile,
-        preferred_codec=args.codec
+        preferred_codec=args.codec,
+        monitor_index=monitor_idx
     )
 
     logger.info("Starting OpenDisplay USB live stream (synthetic=%s, profile=%s)...", args.synthetic, args.mode)
