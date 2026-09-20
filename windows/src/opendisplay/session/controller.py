@@ -35,6 +35,7 @@ from ..audio.capture import AudioCapture
 from ..audio.encoder import AudioEncoder
 from ..clipboard import WindowsClipboard
 from .adaptive import AdaptivePerformanceController, PerformanceProfile
+from .negotiation import FallbackLadder, normalize_refresh_rate, NegotiatedConfig
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,7 @@ class ProtocolController:
         self.clock_sync = ClockSync()
         self.client_hello: Optional[HelloMessage] = None
         self.client_capabilities: Optional[CapabilitiesMessage] = None
+        self.negotiated_config: Optional[NegotiatedConfig] = None
 
         self.video_encoder: Optional[VideoEncoder] = None
         self.pattern_generator = TestPatternGenerator()
@@ -180,18 +182,43 @@ class ProtocolController:
     async def _handle_capabilities(self, payload: bytes) -> None:
         caps = JsonCodec.decode_capabilities(payload)
         self.client_capabilities = caps
-        self.adaptive_controller.display_refresh_rate = caps.display.refreshRateHz
+
+        # Check codecs supported
+        client_supports_hevc = any(v.codec == "HEVC" and v.supported for v in caps.video)
+        host_caps = HardwareCapabilityDetector.detect()
+
+        # Run Phase 1 FallbackLadder negotiation
+        self.negotiated_config = FallbackLadder.negotiate(
+            requested_width=caps.display.widthPx,
+            requested_height=caps.display.heightPx,
+            requested_fps=caps.display.refreshRateHz,
+            device_hevc_supported=client_supports_hevc,
+            host_hevc_supported=host_caps.supports_hevc
+        )
         logger.info(
-            "Received CAPABILITIES: Display %dx%d @ %.1f Hz",
+            "Negotiated configuration [%s]: %dx%d @ %.1f FPS (Reported: %.1f Hz, Level: %s) - %s",
+            self.negotiated_config.rung_name,
+            self.negotiated_config.width,
+            self.negotiated_config.height,
+            self.negotiated_config.fps,
+            caps.display.refreshRateHz,
+            self.negotiated_config.h264_level,
+            self.negotiated_config.reason
+        )
+
+        self.adaptive_controller.display_refresh_rate = self.negotiated_config.fps
+        logger.info(
+            "Received CAPABILITIES: Display %dx%d @ %.1f Hz (Negotiated stream: %.1f FPS)",
             caps.display.widthPx,
             caps.display.heightPx,
-            caps.display.refreshRateHz
+            caps.display.refreshRateHz,
+            self.negotiated_config.fps
         )
 
         # Confirm mandatory H264 codec
         h264_supported = any(v.codec == "H264" and v.supported for v in caps.video)
-        if not h264_supported:
-            logger.error("Client does not support mandatory H264 codec!")
+        if not h264_supported and not client_supports_hevc:
+            logger.error("Client does not support H264 or HEVC!")
             self.state = SessionState.ERROR
             return
 
@@ -199,11 +226,11 @@ class ProtocolController:
         caps_ack = CapabilitiesAckMessage(accepted=True)
         await self.send_packet(PacketCodec.encode(MessageType.CAPABILITIES_ACK, JsonCodec.encode(caps_ack)))
 
-        # Send DISPLAY_CONFIG
+        # Send DISPLAY_CONFIG with normalized negotiated framerate
         disp_cfg = DisplayConfigMessage(
-            widthPx=caps.display.widthPx,
-            heightPx=caps.display.heightPx,
-            frameRateHz=caps.display.refreshRateHz,
+            widthPx=self.negotiated_config.width,
+            heightPx=self.negotiated_config.height,
+            frameRateHz=self.negotiated_config.fps,
             orientation=caps.display.orientation,
             pixelFormat="RGBA_8888",
             scaling="FIT"
@@ -289,9 +316,43 @@ class ProtocolController:
     async def _handle_video_config_ack(self, payload: bytes) -> None:
         ack = JsonCodec.decode_video_config_ack(payload)
         if not ack.accepted:
-            logger.error("Client rejected VIDEO_CONFIG: %s", ack.errorMessage)
-            self.state = SessionState.ERROR
-            return
+            logger.warning("Client rejected VIDEO_CONFIG: %s.", ack.errorMessage)
+            if self.negotiated_config and self.negotiated_config.rung_name != "RUNG_6_BASELINE_1080P60":
+                logger.info("Stepping down to baseline 1080p60 H.264 ladder rung...")
+                self.negotiated_config = FallbackLadder.negotiate(
+                    requested_width=1920,
+                    requested_height=1080,
+                    requested_fps=60.0
+                )
+                params = self.adaptive_controller.compute_parameters()
+                self.video_encoder = VideoEncoder(
+                    width=1920,
+                    height=1080,
+                    fps=60.0,
+                    bitrate_bps=10_000_000,
+                    keyframe_interval_s=params.keyframe_interval_s,
+                    codec="H264"
+                )
+                test_frame = self.pattern_generator.generate_frame()
+                self.video_encoder.encode_rgb_frame(test_frame, timestamp_ns=0)
+                csd0 = self.video_encoder.csd0_base64 or "Z0IAKeKQFAe2AAADAAIAAAMAfCA="
+                csd1 = self.video_encoder.csd1_base64 or "aM48gA=="
+                vid_cfg = VideoConfigMessage(
+                    codec="H264",
+                    widthPx=1920,
+                    heightPx=1080,
+                    frameRateHz=60.0,
+                    bitrateBps=10_000_000,
+                    keyframeIntervalS=params.keyframe_interval_s,
+                    lowLatencyMode=params.low_latency_flags,
+                    csd0Base64=csd0,
+                    csd1Base64=csd1
+                )
+                await self.send_packet(PacketCodec.encode(MessageType.VIDEO_CONFIG, JsonCodec.encode(vid_cfg)))
+                return
+            else:
+                self.state = SessionState.ERROR
+                return
 
         logger.info("Handshake complete. Entering STREAMING state.")
         self.state = SessionState.STREAMING

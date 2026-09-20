@@ -169,9 +169,13 @@ class MainWindow(QMainWindow):
         self.btn_install_driver.clicked.connect(self._launch_driver_installer)
         grid.addWidget(self.btn_install_driver, 4, 0, 1, 2)
 
+        import os
+        is_dev = os.environ.get("OPENDISPLAY_DEV_MODE") == "1"
         self.check_mock = QCheckBox("Use Mock Loopback Transport (Test Mode)")
         self.check_mock.setChecked(False)
-        grid.addWidget(self.check_mock, 5, 0, 1, 2)
+        self.check_mock.setVisible(is_dev)
+        if is_dev:
+            grid.addWidget(self.check_mock, 5, 0, 1, 2)
 
         layout.addWidget(settings_group)
 
