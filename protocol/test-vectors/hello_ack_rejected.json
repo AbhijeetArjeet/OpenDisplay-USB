@@ -1,0 +1,6 @@
+{
+  "type": "HELLO_ACK",
+  "protocol": 1,
+  "accepted": false,
+  "rejectionReason": "Protocol version mismatch. Server requires version 1, client offered version 2."
+}

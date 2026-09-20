@@ -1,0 +1,6 @@
+{
+  "type": "HELLO_ACK",
+  "protocol": 1,
+  "accepted": true,
+  "rejectionReason": null
+}

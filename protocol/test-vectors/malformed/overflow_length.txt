@@ -1,0 +1,12 @@
+Overflow length test vector
+============================
+This binary sequence should be rejected because PAYLOAD_LEN exceeds MAX_PAYLOAD_SIZE (16 MB).
+
+Hex representation:
+  4F 44 53 50          -- correct magic "ODSP"
+  01                   -- version 1
+  01 00                -- MSG_TYPE HELLO
+  FF FF FF FF          -- payload length = 4294967295 (exceeds 16 MB limit)
+  (no payload follows)
+
+Expected result: Result.failure with PacketDecodeException

@@ -1,0 +1,31 @@
+# Gradle & Android
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+*.iml
+.idea/
+*.hprof
+.DS_Store
+local.properties
+
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+venv/
+.venv/
+env/
+
+# Kotlin / Java
+*.class
+
+# Logs & temporary run outputs
+*.log
+*.tmp

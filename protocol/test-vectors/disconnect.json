@@ -1,0 +1,4 @@
+{
+  "type": "DISCONNECT",
+  "reason": "USER_REQUESTED"
+}

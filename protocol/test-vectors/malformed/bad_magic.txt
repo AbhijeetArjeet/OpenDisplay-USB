@@ -1,0 +1,12 @@
+Bad magic test vector
+======================
+This binary sequence should be rejected by PacketCodec.decode() with ERR_INVALID_PACKET.
+
+Hex representation:
+  58 58 58 58          -- wrong magic ("XXXX" instead of "ODSP")
+  01                   -- version 1
+  01 00                -- MSG_TYPE HELLO (0x0001 LE)
+  02 00 00 00          -- payload length 2
+  7B 7D                -- payload "{}"
+
+Expected result: Result.failure with PacketDecodeException

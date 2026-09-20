@@ -1,0 +1,79 @@
+{
+  "metadata": {
+    "timestamp_start": 1789913901.9842381,
+    "timestamp_end": 1789913917.063482,
+    "duration_seconds": 15,
+    "benchmark_version": "3.0.0"
+  },
+  "host": {
+    "os": "Windows",
+    "os_release": "11",
+    "os_version": "10.0.26200",
+    "machine": "AMD64",
+    "processor": "AMD64 Family 25 Model 117 Stepping 2, AuthenticAMD",
+    "probed_h264_encoders": [
+      "h264_nvenc",
+      "h264_amf",
+      "libx264"
+    ],
+    "probed_hevc_encoders": [
+      "hevc_nvenc",
+      "hevc_amf",
+      "libx265"
+    ],
+    "active_encoder": "h264_nvenc",
+    "active_codec": "H264"
+  },
+  "receiver": {
+    "manufacturer": "samsung",
+    "model": "SM-T505",
+    "android_version": "16",
+    "sdk_level": 36,
+    "display_resolution": "1200x2000",
+    "display_density_dpi": 240,
+    "display_refresh_rate_hz": 60.000004
+  },
+  "configuration": {
+    "profile": "LOW_LATENCY",
+    "preferred_codec": "H264",
+    "synthetic_video": true
+  },
+  "streaming_metrics": {
+    "frames_sent_total": 462,
+    "keyframes_sent_total": 8,
+    "bytes_sent_total": 585139,
+    "average_fps": 30.751861487027263,
+    "average_bitrate_kbps": 94.69113189085435,
+    "packets_dropped": 0,
+    "reconnect_count": 0
+  },
+  "latency_metrics_ms": {
+    "clock_drift_ppm": 0.0,
+    "rtt": {
+      "current_ms": 87.5915,
+      "jitter_ms": 3.8764499999999984
+    },
+    "capture": {
+      "p50": 14.8759,
+      "p90": 16.2986,
+      "p99": 63.9596,
+      "min": 12.644,
+      "max": 63.9596,
+      "avg": 15.464857
+    },
+    "encode": {
+      "p50": 16.8927,
+      "p90": 19.198,
+      "p99": 31.12,
+      "min": 14.3442,
+      "max": 31.12,
+      "avg": 17.258579
+    },
+    "transport": null,
+    "decode": null,
+    "render": null,
+    "end_to_end": null,
+    "input": null,
+    "panel_scanout_t10": "N/A"
+  }
+}

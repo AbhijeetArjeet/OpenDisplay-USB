@@ -1,0 +1,20 @@
+# Gradle
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android Studio
+*.iml
+.idea/
+*.hprof
+.DS_Store
+
+# Local properties
+local.properties
+
+# Kotlin
+*.class
+
+# Logs
+*.log

@@ -1,0 +1,6 @@
+{
+  "type": "STREAM_RESET",
+  "reason": "RESOLUTION_CHANGE",
+  "newWidthPx": 1200,
+  "newHeightPx": 2000
+}

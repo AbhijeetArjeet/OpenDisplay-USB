@@ -1,0 +1,9 @@
+{
+  "type": "DISPLAY_CONFIG",
+  "widthPx": 1920,
+  "heightPx": 1080,
+  "frameRateHz": 60.0,
+  "orientation": 0,
+  "pixelFormat": "RGBA_8888",
+  "scaling": "FIT"
+}

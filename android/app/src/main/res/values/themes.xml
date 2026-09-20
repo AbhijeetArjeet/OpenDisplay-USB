@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base application theme. -->
+    <style name="Theme.OpenDisplayUSB" parent="android:Theme.Material.NoActionBar.Fullscreen">
+        <!-- Compose handles all theming; this is just a minimal XML theme -->
+    </style>
+</resources>

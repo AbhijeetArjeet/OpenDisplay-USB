@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenDisplay USB</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_disconnected">Not Connected</string>
+    <string name="status_connecting">Connecting…</string>
+    <string name="status_reconnecting">Reconnecting…</string>
+    <string name="status_error">Connection Error</string>
+    <string name="btn_settings">Settings</string>
+    <string name="btn_diagnostics">Diagnostics</string>
+    <string name="btn_disconnect">Disconnect</string>
+    <string name="btn_connect">Connect</string>
+</resources>

@@ -1,0 +1,5 @@
+{
+  "type": "PONG",
+  "timestampNs": 1000000000,
+  "serverTimestampNs": 1001500000
+}

@@ -1,0 +1,5 @@
+{
+  "_note": "This payload uses message type ID 0xFFFF which is undefined. The receiver MUST NOT disconnect. It MUST log a warning and discard the packet.",
+  "type": "UNKNOWN_FUTURE_TYPE",
+  "data": "some future data"
+}

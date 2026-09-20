@@ -1,0 +1,5 @@
+{
+  "type": "ERROR",
+  "code": 6,
+  "message": "Invalid packet: magic bytes mismatch"
+}

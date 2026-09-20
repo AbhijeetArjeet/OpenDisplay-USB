@@ -1,0 +1,12 @@
+{
+  "type": "VIDEO_CONFIG",
+  "codec": "H264",
+  "widthPx": 1920,
+  "heightPx": 1080,
+  "frameRateHz": 60.0,
+  "bitrateBps": 10000000,
+  "keyframeIntervalS": 2.0,
+  "lowLatencyMode": true,
+  "csd0Base64": "Z0IAKeKQFAe2AAADAAIAAAMAfCA=",
+  "csd1Base64": "aM48gA=="
+}
