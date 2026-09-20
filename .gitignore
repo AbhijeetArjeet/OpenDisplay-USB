@@ -8,6 +8,8 @@ build/
 *.hprof
 .DS_Store
 local.properties
+.kotlin/
+*.salive
 
 # Python
 __pycache__/
@@ -16,6 +18,10 @@ __pycache__/
 *$py.class
 *.egg-info/
 dist/
+**/dist/
+build/
+**/build/
+*.spec
 .pytest_cache/
 .coverage
 htmlcov/
@@ -26,6 +32,7 @@ env/
 # Kotlin / Java
 *.class
 
-# Logs & temporary run outputs
+# Release build assets & temp
+release_assets/
 *.log
 *.tmp

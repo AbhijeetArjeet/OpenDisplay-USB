@@ -12,15 +12,16 @@ android {
         applicationId = "com.opendisplay.usb"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0-phase1"
+        versionCode = 3
+        versionName = "0.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = true
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
