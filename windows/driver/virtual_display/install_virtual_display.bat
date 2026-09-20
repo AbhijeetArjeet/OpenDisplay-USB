@@ -26,6 +26,13 @@ if not exist "C:\VirtualDisplayDriver" (
 )
 copy /Y "%~dp0driver\vdd_settings.xml" "C:\VirtualDisplayDriver\vdd_settings.xml" >nul 2>&1
 
+:: Create device node and install driver
+if exist "C:\VirtualDisplayDriver\nefconw.exe" (
+    cd /d "C:\VirtualDisplayDriver"
+    nefconw.exe --create-device-node --hardware-id Root\MttVDD --class-name Display --class-guid 4D36E968-E325-11CE-BFC1-08002BE10318
+    nefconw.exe --install-driver --inf-path "C:\VirtualDisplayDriver\MttVDD.inf"
+)
+
 echo.
 echo ========================================================
 echo   [SUCCESS] Virtual Display Driver Installed!

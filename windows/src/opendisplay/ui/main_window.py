@@ -204,9 +204,16 @@ class MainWindow(QMainWindow):
         self.btn_disconnect.setObjectName("disconnectBtn")
         self.btn_disconnect.setEnabled(False)
 
+        self.btn_connect.clicked.connect(self._on_connect)
+        self.btn_disconnect.clicked.connect(self._on_disconnect)
+
         btn_layout.addWidget(self.btn_connect)
         btn_layout.addWidget(self.btn_disconnect)
         layout.addLayout(btn_layout)
+
+        self._session = None
+        self._session_loop = None
+        self._session_thread = None
 
         self.setCentralWidget(main_widget)
 
@@ -250,3 +257,73 @@ class MainWindow(QMainWindow):
             if os.path.exists(path):
                 subprocess.Popen(["cmd.exe", "/c", path], shell=True)
                 break
+
+    def _on_connect(self):
+        """Initiates session connection in a background thread."""
+        import threading
+        use_mock = self.check_mock.isChecked()
+        mode_text = self.combo_mode.currentText()
+        monitor_idx = 1 if "Extend" in mode_text else 0
+
+        self.set_connection_state(ConnectionState.CONNECTING)
+
+        self._session_thread = threading.Thread(
+            target=self._run_session_worker,
+            args=(use_mock, monitor_idx),
+            daemon=True
+        )
+        self._session_thread.start()
+
+    def _run_session_worker(self, use_mock: bool, monitor_idx: int):
+        import asyncio
+        import logging
+        from ..transport.adb_transport import AdbTransport
+        from ..transport.mock_transport import MockTransport
+        from ..session.session_manager import SessionManager
+        from ..input.injector import InputInjector
+        from ..session.adaptive import PerformanceProfile
+        from ..session.controller import SessionState
+
+        logger = logging.getLogger("OpenDisplayGUI")
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self._session_loop = loop
+
+        transport = MockTransport() if use_mock else AdbTransport()
+        input_injector = InputInjector()
+
+        self._session = SessionManager(
+            transport=transport,
+            diagnostics=self.diagnostics,
+            input_injector=input_injector,
+            use_synthetic_video=False,
+            performance_profile=PerformanceProfile.LOW_LATENCY,
+            preferred_codec="H264",
+            monitor_index=monitor_idx
+        )
+
+        async def runner():
+            await self._session.start()
+            while self._session and not self._session._stopped:
+                if self._session.controller and self._session.controller.state == SessionState.STREAMING:
+                    QTimer.singleShot(0, lambda: self.set_connection_state(ConnectionState.CONNECTED))
+                await asyncio.sleep(0.5)
+
+        try:
+            loop.run_until_complete(runner())
+        except Exception as e:
+            logger.error("Session worker error: %s", e)
+        finally:
+            QTimer.singleShot(0, lambda: self.set_connection_state(ConnectionState.DISCONNECTED))
+
+    def _on_disconnect(self):
+        """Disconnects the active session cleanly."""
+        import asyncio
+        if hasattr(self, '_session') and self._session and self._session_loop:
+            asyncio.run_coroutine_threadsafe(self._session.stop(), self._session_loop)
+        self.set_connection_state(ConnectionState.DISCONNECTED)
+
+    def closeEvent(self, event):
+        """Cleanly stop stream on window close."""
+        self._on_disconnect()
+        event.accept()
