@@ -95,7 +95,7 @@ fun FloatingToolbar(
                             .background(Color(0xFF00D26A))
                     )
                     Text(
-                        text = "${diagnostics.currentFps.toInt()} FPS",
+                        text = "${diagnostics.fps.toInt()} FPS",
                         color = Color.White,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
@@ -106,8 +106,8 @@ fun FloatingToolbar(
                         fontSize = 10.sp
                     )
                     Text(
-                        text = "${diagnostics.roundTripLatencyMs.toInt()} ms",
-                        color = if (diagnostics.roundTripLatencyMs < 20) Color(0xFF00D26A) else Color(0xFFFFB020),
+                        text = "${diagnostics.decodeLatencyMs.toInt()} ms",
+                        color = if (diagnostics.decodeLatencyMs < 20) Color(0xFF00D26A) else Color(0xFFFFB020),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -183,12 +183,12 @@ fun FloatingToolbar(
                         ) {
                             Column(modifier = Modifier.padding(8.dp)) {
                                 Text(
-                                    text = "Throughput: ${(diagnostics.bitrateBps / 1_000_000f)} Mbps",
+                                    text = "Throughput: ${(diagnostics.bitrateKbps / 1000f)} Mbps",
                                     color = Color(0xFFCFD8DC),
                                     fontSize = 11.sp
                                 )
                                 Text(
-                                    text = "Frames: ${diagnostics.totalFramesDecoded} decoded (${diagnostics.droppedFrames} dropped)",
+                                    text = "Frames: ${diagnostics.decodedFrames} decoded (${diagnostics.droppedFrames} dropped)",
                                     color = Color(0xFFCFD8DC),
                                     fontSize = 11.sp
                                 )
