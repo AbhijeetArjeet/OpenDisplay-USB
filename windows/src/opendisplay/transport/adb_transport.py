@@ -54,6 +54,10 @@ class AdbTransport(TcpTransport):
             return []
 
     def _setup_forward(self) -> bool:
+        if not self.serial:
+            devs = self.list_devices()
+            if devs:
+                self.serial = devs[0]
         cmd = [self._get_adb_path()]
         if self.serial:
             cmd.extend(["-s", self.serial])
@@ -61,7 +65,7 @@ class AdbTransport(TcpTransport):
 
         try:
             logger.info("Executing adb forward: %s", " ".join(cmd))
-            subprocess.run(cmd, check=True, capture_output=True, timeout=5.0)
+            subprocess.run(cmd, check=True, capture_output=True, timeout=10.0)
             self._forward_established = True
             return True
         except Exception as e:

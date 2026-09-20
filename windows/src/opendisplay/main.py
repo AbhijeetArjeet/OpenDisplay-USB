@@ -21,6 +21,7 @@ def main():
     parser.add_argument("--mock", action="store_true", help="Run with MockTransport loopback")
     parser.add_argument("--port", type=int, default=7320, help="Target TCP/ADB port")
     parser.add_argument("--cli", action="store_true", help="Run headless in terminal mode")
+    parser.add_argument("--synthetic", action="store_true", help="Use synthetic test pattern instead of desktop screen capture")
     args = parser.parse_args()
 
     diagnostics = DiagnosticsCollector()
@@ -28,7 +29,12 @@ def main():
 
     if args.cli:
         transport = MockTransport() if args.mock else AdbTransport(port=args.port)
-        session = SessionManager(transport=transport, diagnostics=diagnostics, input_injector=input_injector)
+        session = SessionManager(
+            transport=transport,
+            diagnostics=diagnostics,
+            input_injector=input_injector,
+            use_synthetic_video=args.synthetic
+        )
 
         async def run_cli():
             logger.info("Starting OpenDisplay USB in CLI mode (mock=%s)...", args.mock)
