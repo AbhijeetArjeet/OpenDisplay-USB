@@ -239,8 +239,14 @@ class MainWindow(QMainWindow):
         """Launches the elevated Virtual Display Driver installer."""
         import subprocess
         import os
-        installer_bat = os.path.abspath(os.path.join(
-            os.path.dirname(__file__), "..", "..", "..", "driver", "virtual_display", "install_virtual_display.bat"
-        ))
-        if os.path.exists(installer_bat):
-            subprocess.Popen(["cmd.exe", "/c", installer_bat], shell=True)
+        import sys
+        
+        candidates = [
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "driver", "virtual_display", "install_virtual_display.bat")),
+            os.path.abspath(os.path.join(os.path.dirname(sys.executable), "driver", "virtual_display", "install_virtual_display.bat")),
+            r"C:\usbcaster2.0\windows\driver\virtual_display\install_virtual_display.bat",
+        ]
+        for path in candidates:
+            if os.path.exists(path):
+                subprocess.Popen(["cmd.exe", "/c", path], shell=True)
+                break
