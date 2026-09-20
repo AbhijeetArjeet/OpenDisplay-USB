@@ -38,13 +38,13 @@ class HardwareCapabilityDetector:
 
     CANDIDATES = [
         # H.264 candidates
-        EncoderInfo("h264_nvenc", "H264", True, "NVIDIA", {"preset": "p1", "tune": "ull", "profile": "baseline"}),
+        EncoderInfo("h264_nvenc", "H264", True, "NVIDIA", {"preset": "p4", "tune": "ll", "profile": "high"}),
         EncoderInfo("h264_qsv", "H264", True, "INTEL", {"preset": "veryfast"}),
         EncoderInfo("h264_amf", "H264", True, "AMD", {"usage": "ultralowlatency"}),
-        EncoderInfo("libx264", "H264", False, "SOFTWARE", {"preset": "ultrafast", "tune": "zerolatency", "profile": "baseline", "repeat-headers": "1"}),
+        EncoderInfo("libx264", "H264", False, "SOFTWARE", {"preset": "veryfast", "tune": "zerolatency", "profile": "high", "repeat-headers": "1"}),
 
         # HEVC candidates
-        EncoderInfo("hevc_nvenc", "HEVC", True, "NVIDIA", {"preset": "p1", "tune": "ull", "profile": "main"}),
+        EncoderInfo("hevc_nvenc", "HEVC", True, "NVIDIA", {"preset": "p4", "tune": "ll", "profile": "main"}),
         EncoderInfo("hevc_qsv", "HEVC", True, "INTEL", {"preset": "veryfast"}),
         EncoderInfo("hevc_amf", "HEVC", True, "AMD", {"usage": "ultralowlatency"}),
         EncoderInfo("libx265", "HEVC", False, "SOFTWARE", {"preset": "ultrafast", "tune": "zerolatency", "repeat-headers": "1"}),

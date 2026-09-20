@@ -7,11 +7,13 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.compose.NavHost
@@ -88,10 +90,30 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     val uiState by sessionManager.uiState.collectAsState()
 
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        // Underlying hardware video surface
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val aspectModifier = if (uiState.displayResolution.contains("×")) {
+                            try {
+                                val parts = uiState.displayResolution.split("×")
+                                val w = parts[0].trim().toFloat()
+                                val h = parts[1].trim().toFloat()
+                                if (w > 0f && h > 0f) {
+                                    Modifier.aspectRatio(w / h, matchHeightConstraintsFirst = false)
+                                } else Modifier.fillMaxSize()
+                            } catch (e: Exception) {
+                                Modifier.fillMaxSize()
+                            }
+                        } else {
+                            Modifier.fillMaxSize()
+                        }
+
+                        // Underlying hardware video surface with pixel-perfect aspect ratio letterboxing
                         AndroidView(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(aspectModifier),
                             factory = { context ->
                                 SurfaceView(context).apply {
                                     holder.addCallback(object : SurfaceHolder.Callback {

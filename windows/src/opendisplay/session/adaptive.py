@@ -38,13 +38,13 @@ class AdaptivePerformanceController:
 
     def _get_initial_bitrate(self) -> int:
         if self.profile == PerformanceProfile.LOW_LATENCY:
-            return 8_000_000
-        elif self.profile == PerformanceProfile.QUALITY:
             return 18_000_000
+        elif self.profile == PerformanceProfile.QUALITY:
+            return 25_000_000
         elif self.profile == PerformanceProfile.BATTERY_SAVER:
-            return 4_000_000
+            return 8_000_000
         else:
-            return 10_000_000
+            return 20_000_000
 
     def compute_parameters(self) -> StreamingParameters:
         """Calculates optimal encoding and transmission parameters."""

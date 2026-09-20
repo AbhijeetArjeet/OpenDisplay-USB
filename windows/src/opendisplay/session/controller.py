@@ -231,8 +231,17 @@ class ProtocolController:
             negotiated_codec, params.target_fps, params.bitrate_bps, params.low_latency_flags
         )
 
-        w = self.client_capabilities.display.widthPx if self.client_capabilities else 1920
-        h = self.client_capabilities.display.heightPx if self.client_capabilities else 1080
+        # Use native host screen dimensions to prevent aspect ratio distortion
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            host_w = user32.GetSystemMetrics(0)
+            host_h = user32.GetSystemMetrics(1)
+        except Exception:
+            host_w, host_h = 1920, 1080
+
+        w = host_w if host_w > 0 else 1920
+        h = host_h if host_h > 0 else 1080
 
         self.video_encoder = VideoEncoder(
             width=w,
@@ -299,11 +308,13 @@ class ProtocolController:
             stream_ts_ns = t0_capture_start_ns - start_ns
 
             # Acquire frame (Desktop screen capture or synthetic test pattern)
-            rgb_frame = None
+            frame_data = None
+            frame_fmt = "bgra"
             if not self.use_synthetic_video and self.screen_capture:
-                rgb_frame = self.screen_capture.capture_frame()
-            if rgb_frame is None:
-                rgb_frame = self.pattern_generator.generate_frame()
+                frame_data = self.screen_capture.capture_bgra_frame()
+            if frame_data is None:
+                frame_data = self.pattern_generator.generate_frame()
+                frame_fmt = "rgb24"
 
             # T1: Capture end
             t1_capture_end_ns = MonotonicClock.now_nanos()
@@ -311,7 +322,7 @@ class ProtocolController:
 
             # T2: Encode start
             t2_encode_start_ns = MonotonicClock.now_nanos()
-            packets = self.video_encoder.encode_rgb_frame(rgb_frame, stream_ts_ns)
+            packets = self.video_encoder.encode_rgb_frame(frame_data, stream_ts_ns, format=frame_fmt)
             # T3: Encode end
             t3_encode_end_ns = MonotonicClock.now_nanos()
             encode_duration_ms = (t3_encode_end_ns - t2_encode_start_ns) / 1_000_000.0

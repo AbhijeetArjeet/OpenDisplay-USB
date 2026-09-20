@@ -41,7 +41,8 @@ class AdbTransport(TcpTransport):
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=5.0
+                timeout=15.0,
+                stdin=subprocess.DEVNULL
             )
             devices = []
             for line in result.stdout.strip().splitlines()[1:]:
@@ -65,7 +66,7 @@ class AdbTransport(TcpTransport):
 
         try:
             logger.info("Executing adb forward: %s", " ".join(cmd))
-            subprocess.run(cmd, check=True, capture_output=True, timeout=10.0)
+            subprocess.run(cmd, check=True, capture_output=True, timeout=10.0, stdin=subprocess.DEVNULL)
             self._forward_established = True
             return True
         except Exception as e:
@@ -80,15 +81,21 @@ class AdbTransport(TcpTransport):
             cmd.extend(["-s", self.serial])
         cmd.extend(["forward", "--remove", f"tcp:{self.port}"])
         try:
-            subprocess.run(cmd, check=False, capture_output=True, timeout=5.0)
+            subprocess.run(cmd, check=False, capture_output=True, timeout=5.0, stdin=subprocess.DEVNULL)
         except Exception:
             pass
         self._forward_established = False
 
     async def connect(self) -> bool:
-        """Configures ADB forward and connects to local forwarded port."""
-        if not self._setup_forward():
-            # If adb is unavailable or device not ready, try direct connect anyway
+        """Fast connects if forward already exists, otherwise configures ADB forward and connects."""
+        # Fast path: try connecting directly if forward is already alive
+        if await super().connect():
+            return True
+
+        # Forward not yet configured or disconnected, run adb forward
+        loop = asyncio.get_running_loop()
+        forward_ok = await loop.run_in_executor(None, self._setup_forward)
+        if not forward_ok:
             logger.warning("Proceeding with direct TCP connection to 127.0.0.1:%d", self.port)
 
         return await super().connect()

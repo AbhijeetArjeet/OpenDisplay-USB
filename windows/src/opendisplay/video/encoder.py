@@ -65,9 +65,12 @@ class VideoEncoder:
                 ctx.pix_fmt = "yuv420p"
                 ctx.framerate = int(self.fps)
                 ctx.time_base = Fraction(1, int(self.fps * 1000))
+                options = dict(cand.options)
                 ctx.bit_rate = self.bitrate_bps
-                ctx.gop_size = int(self.fps * self.keyframe_interval_s)
-                ctx.options = cand.options
+                options["b:v"] = str(self.bitrate_bps)
+                options["maxrate"] = str(int(self.bitrate_bps * 1.5))
+                options["bufsize"] = str(int(self.bitrate_bps * 0.5))
+                ctx.options = options
                 ctx.open()
 
                 self._codec_ctx = ctx
@@ -92,12 +95,15 @@ class VideoEncoder:
         """Base64-encoded PPS."""
         return self._pps_b64
 
-    def encode_rgb_frame(self, rgb_array: np.ndarray, timestamp_ns: int) -> List[EncodedPacket]:
-        """Encodes an RGB numpy array (height, width, 3) into Annex B packets."""
+    def encode_rgb_frame(self, frame_array: np.ndarray, timestamp_ns: int, format: str = "rgb24") -> List[EncodedPacket]:
+        """Encodes a numpy array (height, width, channels) into Annex B packets.
+
+        Supports 'rgb24' (3 channels) or 'bgra' (4 channels, zero-copy direct from DIBSection).
+        """
         if self._codec_ctx is None:
             return []
 
-        frame = av.VideoFrame.from_ndarray(rgb_array, format="rgb24")
+        frame = av.VideoFrame.from_ndarray(frame_array, format=format)
         frame.pts = self._frame_count
         self._frame_count += 1
 
