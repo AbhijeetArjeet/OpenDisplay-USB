@@ -52,8 +52,12 @@ class NetworkDiscoveryManager:
 
             t0 = time.monotonic()
             try:
-                # Send to universal broadcast and all common subnet broadcasts
+                # Send to universal broadcast and Windows Mobile Hotspot subnet (192.168.137.255)
                 sock.sendto(DISCOVERY_PROBE, ("255.255.255.255", DISCOVERY_PORT))
+                try:
+                    sock.sendto(DISCOVERY_PROBE, ("192.168.137.255", DISCOVERY_PORT))
+                except Exception:
+                    pass
             except Exception as e:
                 logger.debug("Broadcast send exception: %s", e)
 
