@@ -2,57 +2,89 @@
 
 OpenDisplay USB turns Android phones and tablets into genuine, high-performance secondary displays for Windows PCs over a USB connection.
 
-## Current Status
-Currently in **Phase 1**: Android receiver + mock transport implementation.
+## Highlights
+- **Universal Hardware Support**: Probes GPU encoders dynamically (NVIDIA NVENC, AMD AMF, Intel QSV, Software x264/x265) and supports all Android SoCs (Qualcomm, MediaTek, Exynos, Tensor, Unisoc).
+- **Multi-Codec Handshake**: Runtime discovery and negotiation between H.264 and HEVC.
+- **Ultra-Low Latency Video**: MediaCodec direct-to-surface decoding with high-precision monotonic frame pacing ($24 \dots 120\,\text{FPS}$).
+- **Multi-Touch & Stylus Return**: Injects physical Android touch and pen events into Windows via `SendInput`.
+- **WASAPI Audio Streaming**: Low-latency PCM loopback streaming directly to Android `AudioTrack`.
+- **Bidirectional Clipboard**: Instant clipboard synchronization between Windows and Android.
+- **$T_0 \dots T_{10}$ Latency Pipeline**: Full pipeline latency measurement with zero synthetic fabrication (strictly reporting unmeasurable metrics as N/A).
+- **Automated Benchmark Suite**: Reproducible JSON benchmark generation (`run_benchmark.py`).
 
 ## Feature Roadmap
 | Feature | Status |
 |---|---|
-| Core Protocol Definitions | ✅ Phase 1 |
-| Mock Transport (TCP) | ✅ Phase 1 |
-| Android H.264 Decoding | 🔄 In Progress |
-| Windows Virtual Display Driver | 📋 Planned |
-| Native USB Transport | 📋 Planned |
-| Touch Input Forwarding | 📋 Planned |
+| Core Protocol Definitions (V1) | ✅ Complete |
+| ADB TCP Transport (`:7320`) | ✅ Complete |
+| Android MediaCodec H.264/HEVC Decoding | ✅ Complete |
+| Windows Host Video Capture & Multi-GPU Encoding | ✅ Complete |
+| Multi-Touch Event Injection (`SendInput`) | ✅ Complete |
+| WASAPI Audio Streaming | ✅ Complete |
+| Bidirectional Clipboard Synchronization | ✅ Complete |
+| Precision Clock Synchronization ($ppm$ drift) | ✅ Complete |
+| Adaptive Performance Controller (5 Modes) | ✅ Complete |
+| Physical Hardware Validation (Samsung Galaxy Tab A7) | ✅ Complete |
+| IddCx Virtual Monitor Driver Source | ✅ Included |
+| Native AOA/WinUSB Transport | 📋 Planned |
 
 ## Repository Structure
 ```text
-usbcaster2.0/
-├── app/                  # Main Android Application
-├── core/
-│   ├── protocol/         # Protocol parsing and serialization
-│   ├── transport/        # Transport abstraction
-│   ├── timing/           # Clock sync & latency
-│   └── capabilities/     # Device feature discovery
-├── video/                # MediaCodec H.264/HEVC decoding
-├── audio/                # AudioTrack playback
-├── input/                # Touch and event capture
-├── display/              # Window management
-├── ui/                   # Jetpack Compose UI
-├── diagnostics/          # Metrics and monitoring
-├── protocol/
-│   └── test-vectors/     # Protocol JSON/binary examples
-└── README.md
+OpenDisplay-USB/
+├── android/              # Native Android Client (Kotlin / Compose)
+│   ├── app/              # Main receiver application & UI
+│   ├── core/             # Protocol, transport, capabilities & timing
+│   ├── video/            # MediaCodec decoder & smart-drop frame queue
+│   ├── audio/            # AudioTrack playback
+│   ├── input/            # Touch & stylus event capture
+│   ├── display/          # SurfaceView display management
+│   └── ui/               # Jetpack Compose interface & diagnostics
+├── windows/              # Windows Host Application (Python 3.10+)
+│   ├── driver/           # IddCx Virtual Display Driver (C++)
+│   ├── src/opendisplay/  # Video capture, encoder, audio, input, session
+│   ├── tests/            # Automated test suite (pytest)
+│   └── run_benchmark.py  # Automated performance & latency benchmark runner
+├── protocol/             # Protocol specification & test vectors
+├── ARCHITECTURE.md       # Architecture & system design
+├── PROTOCOL.md           # Byte-level protocol specification
+└── ANDROID_INTEGRATION.md# Cross-platform integration guide
 ```
 
 ## Quick Start
-1. Ensure you have Android Studio and JDK 17+ installed.
-2. Clone this repository and open it in Android Studio.
-3. Build the debug APK: `cd android && ./gradlew assembleDebug` (or via IDE).
-4. Install on your device: `adb install app/build/outputs/apk/debug/app-debug.apk`
-5. Enable mock mode in the app Settings -> Connection -> Use Mock Transport.
 
-To run tests: `./gradlew test`
+### 1. Android Receiver
+1. Open the `android/` directory in Android Studio (JDK 17+).
+2. Build and install:
+   ```bash
+   cd android
+   ./gradlew installDebug
+   ```
+3. Launch the app on your Android tablet/phone.
+
+### 2. Connect via USB (ADB)
+```bash
+adb forward tcp:7320 tcp:7320
+```
+
+### 3. Windows Host Streaming
+1. Install Python dependencies:
+   ```bash
+   cd windows
+   pip install -r requirements.txt
+   ```
+2. Start streaming:
+   ```bash
+   python -m opendisplay.main
+   ```
+3. Run automated latency benchmark:
+   ```bash
+   python run_benchmark.py --duration 15 --mode low_latency
+   ```
 
 ## Documentation
 - [Protocol Specification](PROTOCOL.md)
-- [Android Integration Guide](ANDROID_INTEGRATION.md)
 - [Architecture](ARCHITECTURE.md)
+- [Android Integration Guide](ANDROID_INTEGRATION.md)
 
 ## License
-Apache License, Version 2.0. See LICENSE for more information.
-
-> This repository contains the Android client only.
-> The Windows virtual display driver and transport manager
-> will be implemented separately. See ANDROID_INTEGRATION.md
-> for the interface contract.
+Apache License 2.0.
