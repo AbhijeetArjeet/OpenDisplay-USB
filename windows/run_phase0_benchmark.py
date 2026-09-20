@@ -13,8 +13,8 @@ from opendisplay.display.capture import ScreenCapture
 from opendisplay.video.encoder import VideoEncoder
 
 
-def run_benchmark(duration_seconds: int = 10, target_fps: float = 60.0, use_synthetic: bool = False):
-    print(f"=== Phase 0 Baseline Benchmark (duration={duration_seconds}s, synthetic={use_synthetic}) ===")
+def run_benchmark(duration_seconds: int = 10, target_fps: float = 60.0, use_synthetic: bool = False, capture_backend: str = "dxgi"):
+    print(f"=== Phase 2 Benchmark (duration={duration_seconds}s, synthetic={use_synthetic}, backend={capture_backend}) ===")
     
     harness = MeasurementHarness()
     
@@ -22,7 +22,7 @@ def run_benchmark(duration_seconds: int = 10, target_fps: float = 60.0, use_synt
         frame_source = SyntheticFrameSource(width=1920, height=1080, target_fps=target_fps)
         capture = None
     else:
-        capture = ScreenCapture()
+        capture = ScreenCapture(backend=capture_backend, target_fps=target_fps)
         frame_source = None
 
     encoder = VideoEncoder(
@@ -81,7 +81,11 @@ def run_benchmark(duration_seconds: int = 10, target_fps: float = 60.0, use_synt
     print(f"Host Total:     p50: {summary['host_total_ms']['p50']:5.2f} ms | p95: {summary['host_total_ms']['p95']:5.2f} ms | p99: {summary['host_total_ms']['p99']:5.2f} ms")
     print("===================================================\n")
 
-    out_prefix = "benchmark_phase0_synthetic" if use_synthetic else "benchmark_phase0_gdi_desktop"
+    if use_synthetic:
+        out_prefix = "benchmark_phase2_synthetic"
+    else:
+        out_prefix = f"benchmark_phase2_{capture_backend}"
+
     json_path = os.path.join(os.path.dirname(__file__), f"{out_prefix}.json")
     csv_path = os.path.join(os.path.dirname(__file__), f"{out_prefix}.csv")
     harness.export_json(json_path)
@@ -96,6 +100,12 @@ if __name__ == "__main__":
     parser.add_argument("--duration", type=int, default=8, help="Benchmark duration in seconds")
     parser.add_argument("--fps", type=float, default=60.0, help="Target FPS")
     parser.add_argument("--synthetic", action="store_true", help="Use synthetic frame source")
+    parser.add_argument("--capture", type=str, default="dxgi", choices=["dxgi", "gdi"], help="Capture engine")
     args = parser.parse_args()
 
-    run_benchmark(duration_seconds=args.duration, target_fps=args.fps, use_synthetic=args.synthetic)
+    run_benchmark(
+        duration_seconds=args.duration,
+        target_fps=args.fps,
+        use_synthetic=args.synthetic,
+        capture_backend=args.capture
+    )

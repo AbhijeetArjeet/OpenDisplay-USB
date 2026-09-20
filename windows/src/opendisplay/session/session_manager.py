@@ -30,7 +30,8 @@ class SessionManager:
         enable_clipboard: bool = True,
         performance_profile: PerformanceProfile = PerformanceProfile.BALANCED,
         preferred_codec: str = "H264",
-        monitor_index: int = 0
+        monitor_index: int = 0,
+        capture_backend: str = "dxgi"
     ):
         self.transport = transport
         self.diagnostics = diagnostics or DiagnosticsCollector()
@@ -42,6 +43,7 @@ class SessionManager:
         self.performance_profile = performance_profile
         self.preferred_codec = preferred_codec
         self.monitor_index = monitor_index
+        self.capture_backend = capture_backend
 
         self.controller: Optional[ProtocolController] = None
         self._main_task: Optional[asyncio.Task] = None
@@ -97,7 +99,8 @@ class SessionManager:
                 enable_clipboard=self.enable_clipboard,
                 performance_profile=self.performance_profile,
                 preferred_codec=self.preferred_codec,
-                monitor_index=self.monitor_index
+                monitor_index=self.monitor_index,
+                capture_backend=self.capture_backend
             )
             await self.controller.start_handshake()
 

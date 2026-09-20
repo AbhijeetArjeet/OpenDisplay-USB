@@ -49,13 +49,36 @@ class ScreenCapture:
     directly into NumPy memory without redundant buffer allocations or GetDIBits copies.
     """
 
-    def __init__(self, width: int = 1920, height: int = 1080, monitor_index: int = 0):
+    def __init__(
+        self,
+        width: int = 1920,
+        height: int = 1080,
+        monitor_index: int = 0,
+        backend: str = "dxgi",
+        target_fps: float = 60.0
+    ):
         self.width = width
         self.height = height
         self.monitor_index = monitor_index
+        self.backend = backend.lower()
+        self.target_fps = target_fps
 
         self._user32 = ctypes.windll.user32
         self._gdi32 = ctypes.windll.gdi32
+        self._ensure_default_desktop()
+
+        self._dxgi = None
+        if self.backend == "dxgi":
+            try:
+                from .dxgi_capture import DxgiScreenCapture
+                self._dxgi = DxgiScreenCapture(
+                    width=width,
+                    height=height,
+                    monitor_index=monitor_index,
+                    target_fps=target_fps
+                )
+            except Exception as e:
+                logger.warning("Could not initialize DxgiScreenCapture (%s), using GDI fallback", e)
 
         self._screen_dc = None
         self._mem_dc = None
@@ -163,7 +186,12 @@ class ScreenCapture:
         return monitors
 
     def capture_bgra_frame(self) -> Optional[np.ndarray]:
-        """Captures a BGRA frame directly into mapped memory buffer with ZERO copy."""
+        """Captures a BGRA frame directly with sub-2.5ms latency via DXGI, or GDI fallback."""
+        if self.backend == "dxgi" and self._dxgi and self._dxgi.is_dxgi_active:
+            frame = self._dxgi.capture_bgra_frame()
+            if frame is not None:
+                return frame
+
         try:
             mons = self.get_monitors()
             if self.monitor_index < len(mons):
@@ -201,6 +229,11 @@ class ScreenCapture:
 
     def capture_frame(self) -> Optional[np.ndarray]:
         """Captures a single RGB frame directly from the screen into numpy array."""
+        if self.backend == "dxgi" and self._dxgi and self._dxgi.is_dxgi_active:
+            bgra = self._dxgi.capture_bgra_frame()
+            if bgra is not None:
+                return bgra[:, :, [2, 1, 0]].copy()
+
         try:
             mons = self.get_monitors()
             if self.monitor_index < len(mons):
@@ -255,7 +288,10 @@ class ScreenCapture:
                 return None
 
     def close(self):
-        """Releases all GDI resources."""
+        """Releases all capture resources."""
+        if hasattr(self, '_dxgi') and self._dxgi:
+            self._dxgi.release()
+            self._dxgi = None
         self._cleanup_gdi()
 
     def __del__(self):

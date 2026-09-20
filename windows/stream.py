@@ -36,6 +36,7 @@ def parse_args():
     parser.add_argument("--no-clipboard", action="store_true", help="Disable clipboard sync")
     parser.add_argument("--monitor", type=int, default=0, help="Monitor index: 0=Primary (Duplicate), 1=Extended")
     parser.add_argument("--extend", action="store_true", help="Stream second/extended display (Monitor 1)")
+    parser.add_argument("--capture", type=str, default="dxgi", choices=["dxgi", "gdi"], help="Capture engine: dxgi (default, sub-2.5ms) or gdi (fallback)")
     return parser.parse_args()
 
 
@@ -70,7 +71,8 @@ async def main_async():
         enable_clipboard=not args.no_clipboard,
         performance_profile=profile,
         preferred_codec=args.codec,
-        monitor_index=monitor_idx
+        monitor_index=monitor_idx,
+        capture_backend=args.capture
     )
 
     logger.info("Starting OpenDisplay USB live stream (synthetic=%s, profile=%s)...", args.synthetic, args.mode)

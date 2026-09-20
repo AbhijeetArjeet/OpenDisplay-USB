@@ -64,7 +64,8 @@ class ProtocolController:
         enable_clipboard: bool = True,
         performance_profile: PerformanceProfile = PerformanceProfile.BALANCED,
         preferred_codec: str = "H264",
-        monitor_index: int = 0
+        monitor_index: int = 0,
+        capture_backend: str = "dxgi"
     ):
         self.send_packet = send_packet_func
         self.diagnostics = diagnostics
@@ -75,6 +76,7 @@ class ProtocolController:
         self.performance_profile = performance_profile
         self.preferred_codec = preferred_codec.upper()
         self.monitor_index = monitor_index
+        self.capture_backend = capture_backend
         self.adaptive_controller = AdaptivePerformanceController(profile=self.performance_profile)
 
         self.state = SessionState.IDLE
@@ -183,6 +185,16 @@ class ProtocolController:
         caps = JsonCodec.decode_capabilities(payload)
         self.client_capabilities = caps
 
+        # Pre-initialize ScreenCapture before probing GPU encoders to ensure DXGI binds to display adapter first
+        if self.screen_capture is None and not self.use_synthetic_video:
+            try:
+                self.screen_capture = ScreenCapture(
+                    monitor_index=self.monitor_index,
+                    backend=self.capture_backend
+                )
+            except Exception as e:
+                logger.warning("Early ScreenCapture initialization failed: %s", e)
+
         # Check codecs supported
         client_supports_hevc = any(v.codec == "HEVC" and v.supported for v in caps.video)
         host_caps = HardwareCapabilityDetector.detect()
@@ -281,6 +293,14 @@ class ProtocolController:
             w = host_w if host_w > 0 else 1920
             h = host_h if host_h > 0 else 1080
 
+        if self.screen_capture is None and not self.use_synthetic_video:
+            self.screen_capture = ScreenCapture(
+                width=w,
+                height=h,
+                monitor_index=self.monitor_index,
+                backend=self.capture_backend,
+                target_fps=params.target_fps
+            )
         self.video_encoder = VideoEncoder(
             width=w,
             height=h,
@@ -290,7 +310,6 @@ class ProtocolController:
             codec=negotiated_codec
         )
         self.pattern_generator = TestPatternGenerator(width=w, height=h)
-        self.screen_capture = ScreenCapture(width=w, height=h, monitor_index=self.monitor_index)
 
         # Generate 1 frame to prime encoder and extract SPS/PPS CSD
         test_frame = self.pattern_generator.generate_frame()
