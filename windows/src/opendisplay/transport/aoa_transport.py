@@ -58,7 +58,7 @@ class AoaTransport(ITransport):
 
         if self.fallback_to_adb:
             logger.info("AOA mode not active. Falling back to high-speed ADB TCP bridge on port 7320...")
-            self._adb_fallback = AdbTransport(host="127.0.0.1", port=7320)
+            self._adb_fallback = AdbTransport(port=7320)
             self._is_using_adb = True
             ok = await self._adb_fallback.connect()
             if ok:

@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 class AdbTransport(TcpTransport):
     """Transport that sets up ADB port forwarding before establishing TCP connection."""
 
-    def __init__(self, port: int = DEFAULT_PORT, serial: Optional[str] = None):
-        super().__init__(host="127.0.0.1", port=port)
+    def __init__(self, port: int = DEFAULT_PORT, serial: Optional[str] = None, host: str = "127.0.0.1"):
+        super().__init__(host=host, port=port)
         self.serial = serial
         self._forward_established = False
 

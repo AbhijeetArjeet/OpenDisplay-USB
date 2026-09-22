@@ -112,12 +112,18 @@ class VirtualDisplayInfo:
     supported_resolutions: List[DisplayResolution] = field(default_factory=list)
 
 
+import atexit
+
 class VirtualDisplayManager:
     """Manages discovery, programmatic extension, and lifecycle of virtual display monitors."""
 
     def __init__(self):
         self._user32 = ctypes.windll.user32
         self._attached_by_us = False
+        try:
+            atexit.register(self.teardown)
+        except Exception:
+            pass
 
     def enumerate_displays(self) -> List[VirtualDisplayInfo]:
         """Enumerates all display devices reported by Win32 EnumDisplayDevicesW."""

@@ -62,8 +62,6 @@ class SessionManager:
     async def start(self) -> None:
         """Starts the session manager loop."""
         self._stopped = False
-        if self.virtual_display_manager and self.auto_extend:
-            self.virtual_display_manager.enable_extend_mode()
         self._main_task = asyncio.create_task(self._run_loop())
 
     async def stop(self) -> None:
@@ -104,6 +102,8 @@ class SessionManager:
 
             # Connected successfully, reset reconnect backoff
             reconnect_idx = 0
+            if self.virtual_display_manager and self.auto_extend:
+                self.virtual_display_manager.enable_extend_mode()
             self.controller = ProtocolController(
                 send_packet_func=self.transport.send,
                 diagnostics=self.diagnostics,

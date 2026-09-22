@@ -276,8 +276,14 @@ class MainWindow(QMainWindow):
         self.mode_group.addButton(self.btn_mode_duplicate)
         self.mode_group.addButton(self.btn_mode_extend)
 
+        self.btn_mode_reset = QPushButton("Reset Laptop Screen")
+        self.btn_mode_reset.setObjectName("modeBtn")
+        self.btn_mode_reset.clicked.connect(self._on_reset_display)
+        self.btn_mode_reset.setToolTip("Restores single internal monitor topology (displayswitch /internal)")
+
         mode_btn_row.addWidget(self.btn_mode_duplicate)
         mode_btn_row.addWidget(self.btn_mode_extend)
+        mode_btn_row.addWidget(self.btn_mode_reset)
         mode_layout.addLayout(mode_btn_row)
 
         main_layout.addWidget(mode_card)
@@ -370,6 +376,11 @@ class MainWindow(QMainWindow):
         self.act_tray_disconnect.setEnabled(False)
         self.act_tray_disconnect.triggered.connect(self._on_disconnect)
         tray_menu.addAction(self.act_tray_disconnect)
+
+        tray_menu.addSeparator()
+        act_reset = QAction("Reset Display (Laptop Screen Only)", self)
+        act_reset.triggered.connect(self._on_reset_display)
+        tray_menu.addAction(act_reset)
 
         tray_menu.addSeparator()
         act_quit = QAction("Quit OpenDisplay USB", self)
@@ -500,19 +511,36 @@ class MainWindow(QMainWindow):
         try:
             loop.run_until_complete(runner())
         except Exception as e:
-            pass
+            logger.error("Session worker encountered error: %s", e)
         finally:
+            if hasattr(self, '_session') and self._session:
+                try:
+                    asyncio.run_coroutine_threadsafe(self._session.stop(), loop).result(timeout=2.0)
+                except Exception:
+                    pass
             QTimer.singleShot(0, lambda: self.set_connection_state(ConnectionState.DISCONNECTED))
+
+    def _on_reset_display(self):
+        """Forces Windows back to single primary desktop topology."""
+        try:
+            from ..display.virtual_display import VirtualDisplayManager
+            v = VirtualDisplayManager()
+            v.disable_extend_mode()
+            self.device_info_label.setText("Display topology reset to single screen.")
+        except Exception as e:
+            logger.warning("Failed to reset display topology: %s", e)
 
     def _on_disconnect(self):
         """Stops active streaming session."""
         if hasattr(self, '_session') and self._session and self._session_loop:
             asyncio.run_coroutine_threadsafe(self._session.stop(), self._session_loop)
         self.set_connection_state(ConnectionState.DISCONNECTED)
+        self._on_reset_display()
 
     def _on_quit(self):
         """Cleanly disconnects session and terminates application."""
         self._on_disconnect()
+        self._on_reset_display()
         self.tray_icon.hide()
         QApplication.quit()
 
